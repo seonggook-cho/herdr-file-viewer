@@ -13,6 +13,14 @@ All notable changes to this project are documented here. The format is based on
 - Reading a repository's filter configuration no longer waits forever when an included file does not return. The read gives up after a short budget and git features are unavailable in that repository, rather than running git with an unknown filter set.
 - A repository `core.worktree` that points at another directory no longer becomes the viewed tree. The viewer stays on the directory that was opened. → [usage](docs/usage.md#the-tree)
 
+## [1.18.1-local.1] - 2026-11-06
+
+Local patches on top of 1.18.0.
+
+- The mouse wheel over the tree does nothing.
+- A single click expands or collapses a folder.
+- Images are drawn in the content pane over the kitty graphics protocol, and `m` plays videos and GIFs there with sound. Needs `ffmpeg` and `ffplay`.
+
 ## [1.18.0] - 2026-10-08
 
 ### Added

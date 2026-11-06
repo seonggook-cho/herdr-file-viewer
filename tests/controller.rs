@@ -2898,7 +2898,7 @@ fn left_click_in_the_content_column_focuses_it() {
 }
 
 #[test]
-fn double_click_a_folder_toggles_expansion() {
+fn a_single_click_toggles_a_folder() {
     let dir = TempDir::new();
     std::fs::create_dir(dir.path().join("sub")).unwrap();
     std::fs::write(dir.path().join("sub/inner.txt"), "x").unwrap();
@@ -2907,17 +2907,60 @@ fn double_click_a_folder_toggles_expansion() {
     assert_eq!(
         ctrl.tree().visible_nodes().len(),
         1,
-        "only the collapsed folder is visible"
+        "folder starts collapsed"
     );
 
-    // Two rapid clicks on row 1 (the folder): the first selects, the second (double) expands.
     ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 6, 1));
+    assert_eq!(ctrl.tree().visible_nodes().len(), 2, "one click expands it");
+
+    // A click on another row breaks the double-click pair, so the folder click below is single.
+    ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 6, 2));
     ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 6, 1));
     assert_eq!(
         ctrl.tree().visible_nodes().len(),
-        2,
-        "double-clicking the folder expands it to reveal its child"
+        1,
+        "one click collapses it"
     );
+}
+
+#[test]
+fn a_double_click_on_a_folder_still_leaves_it_expanded() {
+    // The second click of a double-click must not undo the first click's expand.
+    let dir = TempDir::new();
+    std::fs::create_dir(dir.path().join("sub")).unwrap();
+    std::fs::write(dir.path().join("sub/inner.txt"), "x").unwrap();
+    let (mut ctrl, _, _) = controller(dir.path(), false, StubGit::default(), false);
+    ctrl.set_pane_geometry(wide_geometry());
+
+    ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 6, 1));
+    ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 6, 1));
+    assert_eq!(ctrl.tree().visible_nodes().len(), 2);
+
+    ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 6, 1));
+    assert_eq!(
+        ctrl.tree().visible_nodes().len(),
+        1,
+        "the click after a consumed double-click toggles again"
+    );
+}
+
+#[test]
+fn image_target_covers_only_image_files_with_no_modal_open() {
+    let dir = TempDir::new();
+    std::fs::write(dir.path().join("a.png"), "x").unwrap();
+    std::fs::write(dir.path().join("b.txt"), "x").unwrap();
+    let (mut ctrl, _, _) = controller(dir.path(), false, StubGit::default(), false);
+    ctrl.set_pane_geometry(wide_geometry());
+
+    let (path, _) = ctrl.image_target().expect("the cursor starts on a.png");
+    assert!(path.ends_with("a.png"));
+
+    ctrl.handle(Intent::ShowHelp);
+    assert_eq!(ctrl.image_target(), None, "a modal hides the image");
+    ctrl.handle(Intent::Close);
+
+    ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 6, 2));
+    assert_eq!(ctrl.image_target(), None, "a text file has no image");
 }
 
 #[test]
@@ -2927,47 +2970,33 @@ fn a_content_click_then_a_same_row_tree_click_is_not_a_double_click() {
     // SAME row must NOT register as a double-click (no spurious activation). A non-tree click
     // clears the pending double-click.
     let dir = TempDir::new();
-    std::fs::create_dir(dir.path().join("sub")).unwrap();
-    std::fs::write(dir.path().join("sub/inner.txt"), "x").unwrap();
+    std::fs::write(dir.path().join("a.txt"), "x").unwrap();
     let (mut ctrl, _, _) = controller(dir.path(), false, StubGit::default(), false);
     ctrl.set_pane_geometry(wide_geometry());
-    assert_eq!(
-        ctrl.tree().visible_nodes().len(),
-        1,
-        "folder starts collapsed"
-    );
 
     ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 50, 1)); // content pane, row 1
-    ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 4, 1)); // tree folder, same row
-    assert_eq!(
-        ctrl.tree().visible_nodes().len(),
-        1,
-        "a content→tree same-row sequence must NOT activate (no spurious expand)"
+    ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 4, 1)); // tree file, same row
+    assert!(
+        !ctrl.zoomed(),
+        "a content→tree same-row sequence must NOT activate (no spurious zoom)"
     );
 }
 
 #[test]
 fn double_tap_on_the_same_row_activates_even_with_column_jitter() {
     // A touchpad double-tap often lands a column or two apart between taps; as long as both
-    // taps are on the same row within the double-click window, it activates (here: expands a
-    // folder) just like an exact double-click.
+    // taps are on the same row within the double-click window, it activates (here: zooms a
+    // file) just like an exact double-click.
     let dir = TempDir::new();
-    std::fs::create_dir(dir.path().join("sub")).unwrap();
-    std::fs::write(dir.path().join("sub/inner.txt"), "x").unwrap();
+    std::fs::write(dir.path().join("a.txt"), "x").unwrap();
     let (mut ctrl, _, _) = controller(dir.path(), false, StubGit::default(), false);
     ctrl.set_pane_geometry(wide_geometry());
-    assert_eq!(
-        ctrl.tree().visible_nodes().len(),
-        1,
-        "folder starts collapsed"
-    );
 
     ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 4, 1)); // tap 1, column 4
     ctrl.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 9, 1)); // tap 2, column 9 (jitter)
-    assert_eq!(
-        ctrl.tree().visible_nodes().len(),
-        2,
-        "a same-row double-tap with column jitter still expands the folder"
+    assert!(
+        ctrl.zoomed(),
+        "a same-row double-tap with column jitter still zooms the file"
     );
 }
 
@@ -3361,7 +3390,7 @@ fn wheel_scrolls_the_pane_under_the_cursor() {
 }
 
 #[test]
-fn wheel_over_the_tree_moves_the_selection() {
+fn wheel_over_the_tree_is_inert() {
     let dir = TempDir::new();
     for f in ["a.txt", "b.txt", "c.txt"] {
         std::fs::write(dir.path().join(f), "x").unwrap();
@@ -3370,15 +3399,18 @@ fn wheel_over_the_tree_moves_the_selection() {
     ctrl.set_pane_geometry(wide_geometry());
     assert_eq!(ctrl.tree().cursor(), 0);
 
-    // The tree does not scroll independently, so the wheel moves the selection (its equivalent).
     ctrl.handle_mouse(mouse(MouseEventKind::ScrollDown, 5, 5));
     assert_eq!(
         ctrl.tree().cursor(),
-        1,
-        "wheel-down over the tree moves the selection down"
+        0,
+        "wheel-down leaves the selection alone"
     );
     ctrl.handle_mouse(mouse(MouseEventKind::ScrollUp, 5, 5));
-    assert_eq!(ctrl.tree().cursor(), 0, "wheel-up moves it back up");
+    assert_eq!(
+        ctrl.tree().cursor(),
+        0,
+        "wheel-up leaves the selection alone"
+    );
 }
 
 #[test]
@@ -3570,27 +3602,6 @@ fn apply_scroll_lines_sets_the_help_wheel_step() {
         ctrl.help_state().unwrap().sections[0].scroll,
         2,
         "the help wheel step follows scroll_lines (2)"
-    );
-}
-
-#[test]
-fn apply_scroll_lines_does_not_change_the_tree_wheel_step() {
-    // AC-8: the tree advances by exactly one row per wheel event REGARDLESS of the effective scroll
-    // step — it uses the wheel delta's sign, not its magnitude.
-    let dir = TempDir::new();
-    for i in 0..20 {
-        std::fs::write(dir.path().join(format!("f{i:02}.txt")), "x").unwrap();
-    }
-    let (mut ctrl, _, _) = controller(dir.path(), false, StubGit::default(), false);
-    ctrl.set_pane_geometry(wide_geometry());
-    ctrl.apply_scroll_lines(10);
-    assert_eq!(ctrl.tree().cursor(), 0);
-
-    ctrl.handle_mouse(mouse(MouseEventKind::ScrollDown, 5, 5));
-    assert_eq!(
-        ctrl.tree().cursor(),
-        1,
-        "the tree wheel is one row per event regardless of scroll_lines"
     );
 }
 

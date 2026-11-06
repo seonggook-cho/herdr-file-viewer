@@ -257,8 +257,8 @@ impl Controller {
     }
 
     /// A completed left-click: select the tree row it landed on (or focus the content pane). A
-    /// double-click [`activate`](Self::activate)s the row — a directory toggles expand/collapse,
-    /// a file opens in zoom mode (the editor hand-off is the `e` key, not the mouse).
+    /// single click toggles a directory; a double-click on a file opens it in zoom mode (the
+    /// editor hand-off is the `e` key, not the mouse).
     fn handle_click(&mut self, col: u16, row: u16) -> Effects {
         let region = self.hit_test(col, row);
         let now = Instant::now();
@@ -278,7 +278,17 @@ impl Controller {
                 self.focus = Focus::Tree;
                 self.tree.set_cursor(idx);
                 self.dispatch_render(); // selection changed → re-render the content pane
-                if double {
+                let on_dir = self
+                    .tree
+                    .selected()
+                    .is_some_and(|n| n.kind == NodeKind::Dir);
+                if on_dir && double {
+                    // One click already toggled the folder, so the second click of a double-click
+                    // must not undo it. Consume the pair so a later click toggles again.
+                    self.last_click = None;
+                    return Effects::redraw();
+                }
+                if on_dir || double {
                     return self.activate(); // folder → expand/collapse, file → zoom mode
                 }
                 Effects::redraw()
@@ -324,8 +334,8 @@ impl Controller {
         }
     }
 
-    /// Scroll the pane under the cursor: the content pane scrolls vertically; over the tree the
-    /// wheel moves the selection (the tree then scrolls to keep it in view, #45).
+    /// Scroll the pane under the cursor: the content and pinned panes scroll vertically; everywhere
+    /// else, including the tree, the wheel is inert.
     fn scroll_at(&mut self, col: u16, row: u16, delta: isize) -> Effects {
         match self.hit_test(col, row) {
             MouseRegion::Content => {
@@ -334,12 +344,6 @@ impl Controller {
             }
             MouseRegion::Pinned => {
                 self.scroll_pinned(delta);
-                Effects::redraw()
-            }
-            MouseRegion::TreeRow(_) => {
-                self.focus = Focus::Tree;
-                self.tree.move_cursor(delta.signum());
-                self.dispatch_render();
                 Effects::redraw()
             }
             _ => Effects::noop(),

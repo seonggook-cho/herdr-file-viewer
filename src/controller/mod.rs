@@ -64,7 +64,7 @@ use annotation::{AnnotationEditorState, AnnotationListState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use git_apply::PreviewStamp;
 use pinned::PinnedSnapshot;
-use ratatui::layout::Position;
+use ratatui::layout::{Position, Rect};
 use ratatui::text::{Line, Text};
 use std::collections::{BTreeMap, HashMap};
 use std::io;
@@ -936,6 +936,8 @@ pub struct Controller {
     /// Hit-test geometry from the last drawn frame (fed back by the Presenter), so a mouse
     /// event can be mapped to a tree row / the content pane / the divider.
     geom: PaneGeometry,
+    /// The play key was pressed; the event loop owns playback and collects this.
+    video_toggle: bool,
     /// The previous left-click `(col, row, time, origin)`, for double-click detection.
     /// `origin` is a [`ClickOrigin`] so tree / title / finder pairs cannot cross-match on the same
     /// screen row (same-row matching is intentional within one origin for touchpad column jitter).
@@ -1148,6 +1150,7 @@ impl Controller {
             preview_stamp: None,
             head_oid,
             geom: PaneGeometry::default(),
+            video_toggle: false,
             last_click: None,
             drag: None,
             notice_snapshot: NoticeSnapshot::default(),
@@ -1519,6 +1522,22 @@ impl Controller {
     pub fn tree(&self) -> &TreeModel {
         &self.tree
     }
+    /// The file to draw as an image and where, or `None` when no image should be on screen. A
+    /// modal hides it because terminal images always paint above the popup's text.
+    pub fn image_target(&self) -> Option<(PathBuf, Rect)> {
+        let rect = self.geom.content_inner?;
+        let node = self.tree.selected()?;
+        let previewable = matches!(self.modal, Modal::None)
+            && node.kind == NodeKind::File
+            && crate::image_preview::is_previewable(&node.path);
+        previewable.then_some((node.path, rect))
+    }
+
+    /// Whether the play key was pressed since the last call.
+    pub fn take_video_toggle(&mut self) -> bool {
+        std::mem::take(&mut self.video_toggle)
+    }
+
     /// The current tree root. Exposed so tests can assert re-root results.
     pub fn root(&self) -> &Path {
         &self.root
@@ -2327,6 +2346,10 @@ impl Controller {
             Intent::OpenInEditor => self.open_in_editor(),
             Intent::OpenWithApp => self.open_with_app(),
             Intent::RevealInFileManager => self.reveal_in_file_manager(),
+            Intent::ToggleVideo => {
+                self.video_toggle = true;
+                Effects::noop()
+            }
             Intent::CopyRepoPath => self.copy_path(PathKind::Repo),
             Intent::CopyAbsPath => self.copy_path(PathKind::Absolute),
             Intent::AddAnnotation => self.add_annotation(),

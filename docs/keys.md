@@ -27,6 +27,7 @@ is additive and on by default.
 | `D` (Shift+`d`) | In Diff/FullDiff views, cycle diff presentation through `delta` unified, side-by-side, and plain, unstyled `git diff` text |
 | `v` | Cycle the content view mode |
 | `e` | Open the selected file in `$EDITOR` (see [Opening in an editor](#opening-in-an-editor)) |
+| `m` | **Play the selected video or GIF** in the content pane with sound, or stop it. Plays once. Needs `ffmpeg` and `ffplay` |
 | `O` (Shift+`o`) | **Open with default app**: hand the selected file or directory to the OS default application (e.g. an image opens in the system viewer). Read-only hand-off; non-blocking (the viewer keeps running) |
 | `R` (Shift+`r`) | **Reveal in file manager**: open the OS file manager (Finder / Explorer / a Linux file manager) with the selected entry highlighted where supported, so you can drag it out (e.g. into Slack). Read-only hand-off |
 | `f` | **Go to file**: open a fuzzy finder over every file in the tree; type to filter, `↑` / `↓` move, `Enter` opens the selected file and focuses its active preview, `Esc` cancels (`←` / `→` scroll long paths) |
@@ -131,10 +132,10 @@ The viewer is keyboard-first; the mouse is additive and on by default:
 | Gesture | Action |
 | --- | --- |
 | **Click** a tree row | Select it (focus the tree) |
-| **Double-click** a folder | Expand / collapse it (same as `Enter`) |
+| **Single click** on a folder | Expand or collapse it. A double-click leaves it expanded |
 | **Double-click** a file | Open it in **zoom mode**: content full-screen (same as `Enter`); the editor is the `e` key |
 | **Double-click** the content title | Toggle zoom: hide or show the tree (same as `z`). The filename sits on the content pane's top border, so this works even when the tree is already hidden |
-| **Wheel** over the content pane | Scroll it vertically; over the tree, move the selection |
+| **Wheel** over the content pane | Scroll it vertically; the wheel does nothing over the tree |
 | **Horizontal wheel / swipe** | Scroll the content, or the tree, sideways (terminal-dependent, see below) |
 | **Drag** a scrollbar | Scroll that pane: drag ↕ on a vertical bar, ↔ on a horizontal bar; pressing the track jumps there |
 | **Drag** the divider | Resize the tree / content split |

@@ -67,6 +67,8 @@ pub enum Intent {
     /// hand-off — launches another process, never modifies the file (AC-1, AC-N1). Non-blocking
     /// (does not suspend the TUI).
     OpenWithApp,
+    /// Play the selected video with sound, or stop it (`m`). Read-only.
+    ToggleVideo,
     /// Reveal the selected entry in the OS file manager (`R`). Read-only external hand-off
     /// (AC-2, AC-N1). Non-blocking.
     RevealInFileManager,
@@ -180,7 +182,7 @@ pub enum Intent {
 impl Intent {
     /// Every intent variant — lets the dispatcher and tests enumerate the closed set so
     /// keyboard-completeness (AC-18) and the no-file/git-mutation invariant (AC-N3) stay checkable.
-    pub const ALL: [Intent; 46] = [
+    pub const ALL: [Intent; 47] = [
         Intent::NavUp,
         Intent::NavDown,
         Intent::PageUp,
@@ -200,6 +202,7 @@ impl Intent {
         Intent::OpenInEditor,
         Intent::OpenWithApp,
         Intent::RevealInFileManager,
+        Intent::ToggleVideo,
         Intent::CopyRepoPath,
         Intent::CopyAbsPath,
         Intent::AddAnnotation,
@@ -262,6 +265,7 @@ mod tests {
                 | Intent::OpenInEditor
                 | Intent::OpenWithApp
                 | Intent::RevealInFileManager
+                | Intent::ToggleVideo
                 | Intent::CopyRepoPath
                 | Intent::CopyAbsPath
                 | Intent::ShowAnnotations
@@ -329,7 +333,8 @@ mod tests {
                 Some(Intent::CycleView) => Intent::OpenInEditor,
                 Some(Intent::OpenInEditor) => Intent::OpenWithApp,
                 Some(Intent::OpenWithApp) => Intent::RevealInFileManager,
-                Some(Intent::RevealInFileManager) => Intent::CopyRepoPath,
+                Some(Intent::RevealInFileManager) => Intent::ToggleVideo,
+                Some(Intent::ToggleVideo) => Intent::CopyRepoPath,
                 Some(Intent::CopyRepoPath) => Intent::CopyAbsPath,
                 Some(Intent::CopyAbsPath) => Intent::AddAnnotation,
                 Some(Intent::AddAnnotation) => Intent::ShowAnnotations,

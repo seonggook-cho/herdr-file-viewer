@@ -12,6 +12,7 @@ use crate::controller::{
 };
 use crate::editor::{EditorLauncher, SpawnError, Spawner};
 use crate::git::{self, Baseline, Status};
+use crate::image_preview::{self, ImagePreview};
 use crate::presenter::{self, ViewState};
 use crate::render::{self, Caps, Prepared, Renderers};
 use crate::view_policy::ViewMode;
@@ -41,6 +42,8 @@ const TICK: Duration = Duration::from_millis(50);
 /// The poll interval while the finder is indexing or matching, so a result that outlasted the
 /// keystroke's settle budget paints soon after it lands instead of up to a full `TICK` later.
 const FINDER_BUSY_TICK: Duration = Duration::from_millis(10);
+/// Fast enough to show every frame of a playing video.
+const VIDEO_TICK: Duration = Duration::from_millis(10);
 
 /// Per-render wall-clock budget for an external renderer before the plain-text fallback.
 const RENDER_TIMEOUT: Duration = Duration::from_secs(5);
@@ -236,6 +239,7 @@ pub fn run(open_flag: Option<String>) -> io::Result<()> {
         prev_hook(info);
     }));
     let outcome = event_loop(&mut terminal, &mut controller);
+    let _ = io::stdout().write_all(image_preview::CLEAR_SEQUENCE);
     let _ = execute!(io::stdout(), DisableMouseCapture);
     let _ = execute!(io::stdout(), DisableFocusChange);
     ratatui::try_restore()?;
@@ -332,11 +336,22 @@ fn apply_input_effects(
 fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io::Result<()> {
     let mut dirty = true; // paint the first frame
     let mut cwd_root = PathBuf::new();
+    let mut images = ImagePreview::new();
     loop {
         follow_root(controller.root(), &mut cwd_root);
+        let drawing = dirty;
         draw_if_needed(terminal, controller, &mut dirty)?;
+        if drawing {
+            images.set_target(controller.image_target());
+        }
+        if controller.take_video_toggle() {
+            images.toggle_play();
+        }
+        images.sync(&mut io::stdout(), image_preview::cell_pixels())?;
 
-        let tick = if controller.finder_busy() {
+        let tick = if images.playing() {
+            VIDEO_TICK
+        } else if controller.finder_busy() {
             FINDER_BUSY_TICK
         } else {
             TICK
@@ -413,6 +428,9 @@ fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io
                         && let Some(intent) = input::decode(key, controller.bindings()) =>
                 {
                     let fx = controller.handle(intent);
+                    if fx.clear {
+                        images.invalidate();
+                    }
                     // When `fx.clear` is set (an external program, the editor, drew over the
                     // screen), `apply_input_effects` forces a full repaint: `terminal.clear()`
                     // resets ratatui's back buffer so the next draw rewrites every cell (a

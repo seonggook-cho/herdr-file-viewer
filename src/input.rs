@@ -347,6 +347,13 @@ pub(crate) const REGISTRY: &[Binding] = &[
         category: "Open & copy",
     },
     Binding {
+        intent: Intent::ToggleVideo,
+        name: "toggle_video",
+        default_keys: &[KeyCode::Char('m')],
+        description: "Play the selected video with sound, or stop it.",
+        category: "Open & copy",
+    },
+    Binding {
         intent: Intent::CopyRepoPath,
         name: "copy_repo_path",
         default_keys: &[KeyCode::Char('y')],
@@ -854,6 +861,7 @@ mod tests {
         (KeyCode::Char('L'), Intent::TreeScrollRight),
         (KeyCode::Char('O'), Intent::OpenWithApp),
         (KeyCode::Char('R'), Intent::RevealInFileManager),
+        (KeyCode::Char('m'), Intent::ToggleVideo),
         (KeyCode::Char('y'), Intent::CopyRepoPath),
         (KeyCode::Char('Y'), Intent::CopyAbsPath),
         (KeyCode::Char('a'), Intent::AddAnnotation),
@@ -994,7 +1002,7 @@ mod tests {
     #[test]
     fn unmapped_keys_are_a_noop() {
         assert_eq!(map_key(k(KeyCode::Char('g'))), None);
-        assert_eq!(map_key(k(KeyCode::Char('m'))), None);
+        assert_eq!(map_key(k(KeyCode::Char('M'))), None);
         assert_eq!(map_key(k(KeyCode::F(1))), None);
         assert_eq!(map_key(k(KeyCode::Backspace)), None);
     }
