@@ -19,7 +19,7 @@ use crate::view_policy::ViewMode;
 use crate::{host, input, root};
 use crossterm::event::{
     self, DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
-    KeyEventKind,
+    KeyCode, KeyEventKind,
 };
 use crossterm::execute;
 use crossterm::terminal::{
@@ -344,9 +344,6 @@ fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io
         if drawing {
             images.set_target(controller.image_target());
         }
-        if controller.take_video_toggle() {
-            images.toggle_play();
-        }
         images.sync(&mut io::stdout(), image_preview::cell_pixels())?;
 
         let tick = if images.playing() {
@@ -422,6 +419,15 @@ fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io
                     if apply_input_effects(terminal, &mut dirty, fx, true) {
                         return Ok(());
                     }
+                }
+                // A video pane has no text to page through, so Space plays it instead. Every
+                // modal arm is above this one, and a modal removes the video anyway.
+                Event::Key(key)
+                    if key.kind == KeyEventKind::Press
+                        && key.code == KeyCode::Char(' ')
+                        && images.video_shown() =>
+                {
+                    images.toggle_play();
                 }
                 Event::Key(key)
                     if key.kind == KeyEventKind::Press
@@ -1258,7 +1264,7 @@ mod tests {
 
     #[test]
     fn annotation_editor_raw_printables_route_before_global_decoding() {
-        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        use crossterm::event::{KeyEvent, KeyModifiers};
 
         let (mut controller, root) = route_controller("app-route-editor");
         controller.handle(crate::intent::Intent::AddAnnotation);

@@ -249,7 +249,6 @@ customized).
 | **Open & copy** | `open_in_editor` | `e` | Hand the selected file off to an external editor |
 | | `open_with_app` | `O` | Open the selected entry with the OS default application |
 | | `reveal_in_file_manager` | `R` | Reveal the selected entry in the OS file manager |
-| | `toggle_video` | `m` | Play the selected video with sound, or stop it |
 | | `copy_repo_path` | `y` | Copy the selected node's repo-relative path to the clipboard |
 | | `copy_abs_path` | `Y` | Copy the selected node's absolute path to the clipboard |
 | **Annotations** | `add_annotation` | `a` | Add an in-memory annotation for the selected file |

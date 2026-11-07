@@ -19,7 +19,7 @@ Local patches on top of 1.18.0.
 
 - The mouse wheel over the tree does nothing.
 - A single click expands or collapses a folder.
-- Images are drawn in the content pane over the kitty graphics protocol, and `m` plays videos and GIFs there with sound. Needs `ffmpeg` and `ffplay`.
+- Images are drawn in the content pane over the kitty graphics protocol, and `Space` plays videos and GIFs there with sound. Needs `ffmpeg` and `ffplay`.
 
 ## [1.18.0] - 2026-10-08
 

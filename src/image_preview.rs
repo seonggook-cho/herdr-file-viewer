@@ -287,14 +287,19 @@ impl ImagePreview {
         self.playback.is_some()
     }
 
+    /// Whether the pane is showing a video or GIF, so Space should play it.
+    pub fn video_shown(&self) -> bool {
+        self.placed
+            .as_ref()
+            .is_some_and(|t| has_extension(&t.source.0, ANIMATED_EXTENSIONS))
+    }
+
     /// Play the shown video from the start, or stop it on its current frame.
     pub fn toggle_play(&mut self) {
         if self.playback.take().is_some() {
             return;
         }
-        if let Some(target) = &self.placed
-            && has_extension(&target.source.0, ANIMATED_EXTENSIONS)
-        {
+        if let (true, Some(target)) = (self.video_shown(), &self.placed) {
             self.playback = (self.player)(&target.source.0);
         }
     }
@@ -599,11 +604,22 @@ mod tests {
     }
 
     #[test]
+    fn only_a_video_claims_the_play_key() {
+        let mut view = video_preview();
+        let mut out = Vec::new();
+        assert!(!view.video_shown(), "nothing is shown yet");
+        view.set_target(Some(("v.mp4".into(), area())));
+        sync_until(&mut view, &mut out, drawn);
+        assert!(view.video_shown());
+    }
+
+    #[test]
     fn the_key_does_nothing_on_a_still_image() {
         let mut view = video_preview();
         let mut out = Vec::new();
         view.set_target(Some(("a.png".into(), area())));
         sync_until(&mut view, &mut out, drawn);
+        assert!(!view.video_shown(), "Space stays page-down on an image");
         view.toggle_play();
         assert!(!view.playing());
     }
