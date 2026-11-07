@@ -346,8 +346,22 @@ impl Controller {
                 self.scroll_pinned(delta);
                 Effects::redraw()
             }
+            MouseRegion::TreeRow(_) | MouseRegion::TreeVBar | MouseRegion::TreeHBar => {
+                self.scroll_tree(delta)
+            }
             _ => Effects::noop(),
         }
+    }
+
+    /// Scroll the tree list by `delta` rows without touching the selection. The tree stays where
+    /// the wheel left it until the selection moves.
+    fn scroll_tree(&mut self, delta: isize) -> Effects {
+        let rows = self.tree.visible_nodes();
+        let visible = self.geom.tree_inner.map_or(0, |t| t.height as usize);
+        let max = rows.len().saturating_sub(visible) as isize;
+        self.geom.tree_scroll = (self.geom.tree_scroll as isize + delta).clamp(0, max) as u16;
+        self.tree_wheel_anchor = Some(self.tree.cursor_in(&rows));
+        Effects::redraw()
     }
 
     /// Horizontal wheel / trackpad swipe scrolls sideways: the content pane (like the `←`/`→`

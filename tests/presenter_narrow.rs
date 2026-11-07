@@ -41,6 +41,7 @@ fn state(focus: Focus) -> ViewState {
         pinned: None,
         focus,
         tree_scroll: 0,
+        tree_free_scroll: false,
         tree_hscroll: 0,
         preview_split_pct: 50,
         split_pct: 40,

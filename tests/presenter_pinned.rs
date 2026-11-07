@@ -39,6 +39,7 @@ fn state(pinned: PreviewProjection) -> ViewState {
         pinned: Some(pinned),
         focus: Focus::Content,
         tree_scroll: 0,
+        tree_free_scroll: false,
         tree_hscroll: 0,
         preview_split_pct: 50,
         split_pct: 20,

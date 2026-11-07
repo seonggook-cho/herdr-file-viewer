@@ -3390,27 +3390,43 @@ fn wheel_scrolls_the_pane_under_the_cursor() {
 }
 
 #[test]
-fn wheel_over_the_tree_is_inert() {
+fn wheel_over_the_tree_scrolls_the_list_and_leaves_the_selection() {
     let dir = TempDir::new();
-    for f in ["a.txt", "b.txt", "c.txt"] {
-        std::fs::write(dir.path().join(f), "x").unwrap();
+    for i in 0..60 {
+        std::fs::write(dir.path().join(format!("f{i:02}.txt")), "x").unwrap();
     }
     let (mut ctrl, _, _) = controller(dir.path(), false, StubGit::default(), false);
-    ctrl.set_pane_geometry(wide_geometry());
-    assert_eq!(ctrl.tree().cursor(), 0);
+    ctrl.set_pane_geometry(wide_geometry()); // tree_inner h20 → max offset 40
 
     ctrl.handle_mouse(mouse(MouseEventKind::ScrollDown, 5, 5));
-    assert_eq!(
-        ctrl.tree().cursor(),
-        0,
-        "wheel-down leaves the selection alone"
-    );
+    let view = ctrl.view_state();
+    assert!(view.tree_scroll > 0, "wheel-down scrolls the list");
+    assert!(view.tree_free_scroll, "the list has left the selection");
+    assert_eq!(ctrl.tree().cursor(), 0, "the selection stays put");
+
+    // The next frame keeps the wheel's position even with the selection off-screen.
+    let area = Rect::new(0, 0, 100, 30);
+    let drawn = herdr_file_viewer::presenter::geometry(area, &view);
+    assert_eq!(drawn.tree_scroll, view.tree_scroll);
+
     ctrl.handle_mouse(mouse(MouseEventKind::ScrollUp, 5, 5));
+    assert_eq!(ctrl.view_state().tree_scroll, 0, "wheel-up scrolls back");
+
+    for _ in 0..100 {
+        ctrl.handle_mouse(mouse(MouseEventKind::ScrollDown, 5, 5));
+    }
     assert_eq!(
-        ctrl.tree().cursor(),
-        0,
-        "wheel-up leaves the selection alone"
+        ctrl.view_state().tree_scroll,
+        40,
+        "clamped at the last page"
     );
+
+    // Moving the selection hands the list back to it.
+    ctrl.handle(Intent::NavDown);
+    let view = ctrl.view_state();
+    assert!(!view.tree_free_scroll);
+    let drawn = herdr_file_viewer::presenter::geometry(area, &view);
+    assert_eq!(drawn.tree_scroll, 1, "the selected row is back in view");
 }
 
 #[test]

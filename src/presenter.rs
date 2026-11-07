@@ -111,6 +111,9 @@ pub struct ViewState {
     /// so selecting a row already in view (e.g. a mouse click) never jumps the viewport (#45). `0`
     /// on the first frame and whenever every node fits.
     pub tree_scroll: u16,
+    /// The wheel moved the tree away from the selection: draw [`Self::tree_scroll`] as it is
+    /// instead of following the selected row, and let the scrollbar thumb track that offset.
+    pub tree_free_scroll: bool,
     /// The tree's horizontal scroll offset, in columns — so a deeply-nested or long file name can
     /// be read sideways when it overflows the tree column. Driven by the `H`/`L` keys, the
     /// horizontal wheel, and by dragging the tree's horizontal scrollbar (the `←`/`→` keys are
@@ -1053,12 +1056,7 @@ fn draw_tree(frame: &mut Frame, area: Rect, state: &ViewState) {
     // `geometry` recomputes the SAME layout + offset, so hit-testing agrees with what is drawn.
     let max_width = tree_rows_max_width(&state.nodes);
     let (text, vbar, hbar) = tree_bars(inner, state.nodes.len(), max_width);
-    let offset = sticky_scroll_offset(
-        state.selected,
-        state.nodes.len(),
-        text.height as usize,
-        state.tree_scroll as usize,
-    );
+    let offset = tree_offset(state, text.height as usize);
     let hoff = (state.tree_hscroll as usize).min(max_width.saturating_sub(text.width as usize));
     frame.render_widget(
         Paragraph::new(rows).scroll((
@@ -1069,16 +1067,15 @@ fn draw_tree(frame: &mut Frame, area: Rect, state: &ViewState) {
     );
     if let Some(track) = vbar {
         // The tree's vertical thumb tracks the CURSOR (selected index), not the viewport offset —
-        // the tree has no independent vertical scroll (its position follows the selection, #45), so
-        // dragging the bar scrubs the selection and the thumb must follow it. (The content vbar,
-        // which has a real offset, uses that — see `draw_content`.)
-        draw_vscrollbar(
-            frame,
-            track,
-            state.nodes.len(),
-            state.selected,
-            text.height as usize,
-        );
+        // the tree's position follows the selection (#45), so dragging the bar scrubs the selection
+        // and the thumb must follow it. A wheel scroll is the exception: the view has left the
+        // selection, so the thumb shows the viewport offset, as the content vbar does.
+        let pos = if state.tree_free_scroll {
+            offset
+        } else {
+            state.selected
+        };
+        draw_vscrollbar(frame, track, state.nodes.len(), pos, text.height as usize);
     }
     if let Some(track) = hbar {
         draw_hscrollbar(frame, track, max_width, hoff, text.width as usize);
@@ -1458,13 +1455,7 @@ pub fn geometry(area: Rect, state: &ViewState) -> PaneGeometry {
         None => (None, None, None),
     };
     let tree_scroll = tree_inner.map_or(0, |t| {
-        sticky_scroll_offset(
-            state.selected,
-            state.nodes.len(),
-            t.height as usize,
-            state.tree_scroll as usize,
-        )
-        .min(u16::MAX as usize) as u16
+        tree_offset(state, t.height as usize).min(u16::MAX as usize) as u16
     });
     let tree_content_width = if tree_inner.is_some() {
         max_width.min(u16::MAX as usize) as u16
@@ -1877,6 +1868,17 @@ fn scroll_offset(cursor: usize, len: usize, visible: usize) -> usize {
     } else {
         (cursor + 1 - visible).min(max_offset)
     }
+}
+
+/// The tree's first visible row for this frame: where the wheel left it, or otherwise following the
+/// selection. Shared by [`draw_tree`] and [`geometry`] so a click maps to the row actually drawn.
+fn tree_offset(state: &ViewState, visible: usize) -> usize {
+    let len = state.nodes.len();
+    let current = state.tree_scroll as usize;
+    if state.tree_free_scroll {
+        return current.min(len.saturating_sub(visible));
+    }
+    sticky_scroll_offset(state.selected, len, visible, current)
 }
 
 /// Like [`scroll_offset`] but scrolls **minimally** from the `current` offset: if the cursor is

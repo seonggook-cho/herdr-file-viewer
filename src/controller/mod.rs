@@ -811,6 +811,9 @@ pub struct Controller {
     /// The tree's horizontal scroll offset (columns), for reading long / deeply-nested rows. Like
     /// the cursor it is navigation state: reset on a re-root (AC-13), not carried.
     tree_hscroll: u16,
+    /// The selected row when the wheel last scrolled the tree. While the selection stays on it the
+    /// tree holds the wheel's position; moving the selection makes the tree follow it again.
+    tree_wheel_anchor: Option<usize>,
     focus: Focus,
     /// The interaction state an open in-file prompt was created for. It is deliberately not
     /// inferred from later focus changes, so incremental search cannot leak across previews.
@@ -825,8 +828,7 @@ pub struct Controller {
     /// How many lines (or finder list items, or help-overlay lines) one mouse-wheel event advances
     /// — the effective **scroll step** (config `scroll_lines`, else [`crate::config::DEFAULT_SCROLL_LINES`]).
     /// Set once at startup via [`apply_scroll_lines`](Self::apply_scroll_lines). Held as `isize`
-    /// because the wheel handlers negate it for wheel-up. The directory tree ignores the magnitude
-    /// (it advances one row per event via the delta's sign), so this only affects the content pane,
+    /// because the wheel handlers negate it for wheel-up. It applies to the content pane, the tree,
     /// the finder list, and the help overlay.
     wheel_step: isize,
     /// The tree column's share of the width, as a percentage (the rest is the content pane).
@@ -1108,6 +1110,7 @@ impl Controller {
             compact_dirs: false,
             expand_changed: false,
             tree_hscroll: 0,
+            tree_wheel_anchor: None,
             changed_only: false,
             diff_render_mode: DiffRenderMode::default(),
             status_mode: false,
@@ -1400,6 +1403,7 @@ impl Controller {
         self.active_interaction.vertical_scroll = 0;
         self.active_interaction.horizontal_scroll = 0;
         self.tree_hscroll = 0;
+        self.tree_wheel_anchor = None;
         self.overrides.clear();
         // The old root's rendered content is invalid under the new root. The dispatch below
         // installs a typed loading state until the new root's first document lands.
@@ -2153,6 +2157,7 @@ impl Controller {
             // Last frame's tree offset, so the Presenter scrolls minimally from it (#45): selecting
             // a row already in view — e.g. a mouse click — never jumps the viewport.
             tree_scroll: self.geom.tree_scroll,
+            tree_free_scroll: self.tree_wheel_anchor == Some(selected),
             tree_hscroll: self.tree_hscroll,
             preview_split_pct: self.preview_split_pct,
             split_pct: self.split_pct,
