@@ -346,6 +346,11 @@ impl Controller {
                 self.scroll_pinned(delta);
                 Effects::redraw()
             }
+            // Local patch: the wheel over the tree no longer moves the selection; it resizes the
+            // sidebar instead (down = wider, up = narrower), clamped by `resize_split`.
+            MouseRegion::TreeRow(_) | MouseRegion::TreeVBar | MouseRegion::TreeHBar => {
+                self.resize_split(delta.signum() as i16 * TREE_WHEEL_STEP)
+            }
             _ => Effects::noop(),
         }
     }

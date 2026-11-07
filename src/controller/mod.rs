@@ -167,6 +167,8 @@ const SPLIT_MIN: u16 = crate::config::MIN_TREE_WIDTH;
 const SPLIT_MAX: u16 = crate::config::MAX_TREE_WIDTH;
 /// How many percentage points one resize keypress moves the divider.
 const SPLIT_STEP: u16 = 5;
+/// Local patch: percentage points the sidebar grows/shrinks per wheel notch over the tree.
+const TREE_WHEEL_STEP: i16 = 2;
 /// Bounds and one-key increment for the pinned/active preview divider. These are independent of
 /// the outer tree/content split: a pin is the only precondition for mutating this ratio.
 const PREVIEW_SPLIT_MIN: u16 = 20;
@@ -4204,6 +4206,44 @@ mod tests {
         );
         ctrl.set_content_viewport(80, 7);
         assert_eq!(ctrl.page_step(), 7, "and it tracks a resize");
+    }
+
+    #[test]
+    fn tree_wheel_resizes_the_sidebar_instead_of_moving_the_selection() {
+        use crossterm::event::{KeyModifiers, MouseEvent, MouseEventKind};
+        let mut ctrl = wiring_controller();
+        ctrl.set_pane_geometry(PaneGeometry {
+            area_x: 0,
+            area_width: 100,
+            // 28 text columns + 2 borders = the 30% the controller starts at, so the first resize
+            // does not re-seed `split_pct` from a different displayed width.
+            tree_inner: Some(ratatui::layout::Rect {
+                x: 1,
+                y: 1,
+                width: 28,
+                height: 12,
+            }),
+            divider_x: Some(30),
+            ..PaneGeometry::default()
+        });
+        let wheel = |kind| MouseEvent {
+            kind,
+            column: 5,
+            row: 3,
+            modifiers: KeyModifiers::NONE,
+        };
+        let selected = ctrl.tree().cursor();
+        let start = ctrl.split_pct();
+        ctrl.handle_mouse(wheel(MouseEventKind::ScrollDown));
+        assert!(ctrl.split_pct() > start, "wheel down widens the sidebar");
+        ctrl.handle_mouse(wheel(MouseEventKind::ScrollUp));
+        ctrl.handle_mouse(wheel(MouseEventKind::ScrollUp));
+        assert!(ctrl.split_pct() < start, "wheel up narrows the sidebar");
+        for _ in 0..100 {
+            ctrl.handle_mouse(wheel(MouseEventKind::ScrollDown));
+        }
+        assert_eq!(ctrl.split_pct(), SPLIT_MAX, "clamped at the maximum");
+        assert_eq!(ctrl.tree().cursor(), selected, "selection never moves");
     }
 
     #[test]
