@@ -42,7 +42,7 @@ const TICK: Duration = Duration::from_millis(50);
 /// The poll interval while the finder is indexing or matching, so a result that outlasted the
 /// keystroke's settle budget paints soon after it lands instead of up to a full `TICK` later.
 const FINDER_BUSY_TICK: Duration = Duration::from_millis(10);
-/// Fast enough to show every frame of a playing video.
+/// Fast enough to show every frame of a playing video, and a stepped-to frame as soon as it is ready.
 const VIDEO_TICK: Duration = Duration::from_millis(10);
 
 /// Per-render wall-clock budget for an external renderer before the plain-text fallback.
@@ -340,13 +340,17 @@ fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io
     loop {
         follow_root(controller.root(), &mut cwd_root);
         let drawing = dirty;
+        if drawing {
+            images.erase_bar(&mut io::stdout())?;
+        }
         draw_if_needed(terminal, controller, &mut dirty)?;
         if drawing {
             images.set_target(controller.image_target());
         }
+        images.set_input_waiting(event::poll(Duration::ZERO)?);
         images.sync(&mut io::stdout(), image_preview::cell_pixels())?;
 
-        let tick = if images.playing() {
+        let tick = if images.busy() {
             VIDEO_TICK
         } else if controller.finder_busy() {
             FINDER_BUSY_TICK
@@ -429,6 +433,12 @@ fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io
                 {
                     images.toggle_play();
                 }
+                // A video with a known length steps with the arrows (Shift: a second). The tree's
+                // own Left/Right stay on h/l while a video is shown.
+                Event::Key(key)
+                    if key.kind == KeyEventKind::Press
+                        && images.seekable()
+                        && images.handle_key(&key) => {}
                 Event::Key(key)
                     if key.kind == KeyEventKind::Press
                         && let Some(intent) = input::decode(key, controller.bindings()) =>
@@ -455,6 +465,8 @@ fn event_loop(terminal: &mut DefaultTerminal, controller: &mut Controller) -> io
                 }
                 // Mouse input (capture is enabled in `run`): clicks select / activate, the
                 // wheel scrolls, dragging the divider resizes. It never quits the viewer.
+                // Clicks and drags on a video's seek bar move through the video instead.
+                Event::Mouse(me) if images.handle_mouse(&me) => {}
                 Event::Mouse(me) => {
                     let fx = controller.handle_mouse(me);
                     apply_input_effects(terminal, &mut dirty, fx, false);

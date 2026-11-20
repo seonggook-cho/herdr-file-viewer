@@ -13,6 +13,10 @@ All notable changes to this project are documented here. The format is based on
 - Reading a repository's filter configuration no longer waits forever when an included file does not return. The read gives up after a short budget and git features are unavailable in that repository, rather than running git with an unknown filter set.
 - A repository `core.worktree` that points at another directory no longer becomes the viewed tree. The viewer stays on the directory that was opened. → [usage](docs/usage.md#the-tree)
 
+## [1.18.1-local.4] - 2026-11-20
+
+- A video or GIF gets a seek bar under it with the time and frame number. Stopped, `←` / `→` step one frame and `Shift+←` / `Shift+→` one second, showing the exact frame at full preview size; clicking or dragging the bar seeks. `Space` plays from the position, sound included. Needs `ffprobe`. → [keys](docs/keys.md)
+
 ## [1.18.1-local.3] - 2026-11-07
 
 - The mouse wheel over the tree scrolls the file list and its scrollbar. The selection stays put; moving the selection brings the list back to it.

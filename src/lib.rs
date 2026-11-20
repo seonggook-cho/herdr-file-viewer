@@ -39,6 +39,7 @@ pub mod search;
 pub mod text_layout;
 pub mod tree;
 pub mod update;
+pub mod video_seek;
 pub mod view_policy;
 pub mod worktree;
 

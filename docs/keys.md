@@ -27,7 +27,10 @@ is additive and on by default.
 | `D` (Shift+`d`) | In Diff/FullDiff views, cycle diff presentation through `delta` unified, side-by-side, and plain, unstyled `git diff` text |
 | `v` | Cycle the content view mode |
 | `e` | Open the selected file in `$EDITOR` (see [Opening in an editor](#opening-in-an-editor)) |
-| `Space` on a video or GIF | **Play it** in the content pane with sound, or stop it. Plays once. Needs `ffmpeg` and `ffplay`. On any other file `Space` pages down |
+| `Space` on a video or GIF | **Play it** in the content pane with sound from the seek bar's position, or stop it there. Plays once; at the end it starts over. Needs `ffmpeg` and `ffplay`. On any other file `Space` pages down |
+| `←` / `→` on a video or GIF | **Step one frame** back or forward and show that exact frame (stops playback first). The tree's own `←` / `→` stay on `h` / `l` while a video is shown. Needs `ffprobe` |
+| `Shift+←` / `Shift+→` on a video or GIF | Step one second back or forward |
+| click / drag the seek bar | The last row under a video shows `❚❚ ━━●── 00:05.12 / 00:15.00  F 123/362`; click or drag it to seek. Frames come from the original, so a variable-frame-rate video may be a frame off |
 | `O` (Shift+`o`) | **Open with default app**: hand the selected file or directory to the OS default application (e.g. an image opens in the system viewer). Read-only hand-off; non-blocking (the viewer keeps running) |
 | `R` (Shift+`r`) | **Reveal in file manager**: open the OS file manager (Finder / Explorer / a Linux file manager) with the selected entry highlighted where supported, so you can drag it out (e.g. into Slack). Read-only hand-off |
 | `f` | **Go to file**: open a fuzzy finder over every file in the tree; type to filter, `↑` / `↓` move, `Enter` opens the selected file and focuses its active preview, `Esc` cancels (`←` / `→` scroll long paths) |
